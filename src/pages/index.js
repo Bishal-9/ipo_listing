@@ -1,118 +1,146 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
+import { useState } from "react"
+import helper from "../helper"
+import IPO from "../components/IPO"
+import { Pacifico, Roboto } from "next/font/google"
+import { Button, Container, Grid, Loader } from "@mantine/core"
+import DateField from "@/components/DateField"
 
-const inter = Inter({ subsets: ['latin'] })
+const headingFont = Pacifico({
+    style: "normal",
+    weight: "400",
+    subsets: ["latin"],
+})
+const font = Roboto({ subsets: ["latin"], weight: "700" })
 
-export default function Home() {
-  return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+export default function Home({ data, start_date, end_date }) {
+    let ipo_list = data?.ipoCalendar?.length > 0 ? data.ipoCalendar : []
+    // console.log("IPO List: ", ipo_list)
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+    const [startDate, setStartDate] = useState(new Date(start_date))
+    const [endDate, setEndDate] = useState(new Date(end_date))
+    const [loading, setLoading] = useState(false)
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
+    const get_ipo_list = async () => {
+        setLoading(true)
+
+        const api_key =
+            process.env.NEXT_PUBLIC_FINHUB_API_KEY.toString().trim() || ""
+        const base_url =
+            process.env.NEXT_PUBLIC_BASE_URL.toString().trim() ||
+            "https://finnhub.io/api/v1"
+        const from_year = new Date(startDate).getFullYear().toString()
+        const from_month = (
+            "0" + (new Date(startDate).getMonth() + 1).toString()
+        ).slice(-2)
+        const from_date = (
+            "0" + new Date(startDate).getDate().toString()
+        ).slice(-2)
+        const to_year = helper.future_full_year(endDate)
+        const to_month = helper.future_full_month(endDate)
+        const to_date = helper.future_full_date(endDate)
+
+        const url = `${base_url}/calendar/ipo?from=${from_year}-${from_month}-${from_date}&to=${to_year}-${to_month}-${to_date}&token=${api_key}`
+
+        await fetch(url)
+            .then((response) => response.json())
+            .then((data) => {
+                ipo_list = data
+            })
+            .catch((error) => {
+                const message = error?.response?.data
+                    ? error?.response?.data
+                    : error?.message
+                console.log("IPO Fetching error: ", message)
+            })
+            .finally(() => setLoading(false))
+    }
+
+    return (
+        <main
+            className={`flex min-h-screen flex-col items-center  py-24 px-10 ${font.className}`}
         >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+            <h1 className={`${headingFont.className} text-[50px] pb-8`}>Upcoming IPOs</h1>
+            <Grid className="w-full max-w-lg">
+                <Grid.Col span={6}>
+                    <DateField
+                        label="Start Date"
+                        date={startDate}
+                        setDate={setStartDate}
+                    />
+                </Grid.Col>
+                <Grid.Col span={6}>
+                    <DateField
+                        label="End Date"
+                        date={endDate}
+                        setDate={setEndDate}
+                    />
+                </Grid.Col>
+            </Grid>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+            <Container className="w-full max-w-lg my-4">
+                <Button
+                    variant="light"
+                    className="ml-80"
+                    onClick={get_ipo_list}
+                >
+                    Search IPO
+                </Button>
+            </Container>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
+            {loading ? <Loader /> : <IPO ipo_list={ipo_list} />}
+        </main>
+    )
+}
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+export async function getServerSideProps() {
+    let ipo_list = []
+    const api_key =
+        process.env.NEXT_PUBLIC_FINHUB_API_KEY.toString().trim() || ""
+    const base_url =
+        process.env.NEXT_PUBLIC_BASE_URL.toString().trim() ||
+        "https://finnhub.io/api/v1"
+    const current_year = helper.current_full_year()
+    const current_month = helper.current_full_month()
+    const current_date = helper.current_full_date()
+    const future_60_days = helper.future_timestamp()
+    const future_year = helper.future_full_year(future_60_days)
+    const future_month = helper.future_full_month(future_60_days)
+    const future_date = helper.future_full_date(future_60_days)
+
+    const url = `${base_url}/calendar/ipo?from=${current_year}-${current_month}-${current_date}&to=${future_year}-${future_month}-${future_date}&token=${api_key}`
+    // console.log("URL: ", url)
+
+    await fetch(url)
+        .then((response) => response.json())
+        .then((data) => {
+            ipo_list = data
+        })
+        .catch((error) => {
+            const message = error?.response?.data
+                ? error?.response?.data
+                : error?.message
+            console.log("IPO Fetching error: ", message)
+        })
+
+    // console.log("Server Side Log: ", ipo_list)
+    // console.log(
+    //     "Start Date: ",
+    //     new Date(`${current_year}-${current_month}-${current_date}`)
+    // )
+    // console.log(
+    //     "End Date: ",
+    //     new Date(`${future_year}-${future_month}-${future_date}`)
+    // )
+
+    return {
+        props: {
+            data: ipo_list,
+            start_date: new Date(
+                `${current_year}-${current_month}-${current_date}`
+            ).toDateString(),
+            end_date: new Date(
+                `${future_year}-${future_month}-${future_date}`
+            ).toDateString(),
+        },
+    }
 }
